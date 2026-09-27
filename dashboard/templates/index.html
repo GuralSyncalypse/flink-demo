@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FraudScope — Giám sát giao dịch</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260928-3') }}">
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <span class="brand-mark">FS</span>
+        <div><strong>FraudScope</strong><small>Streaming Risk Intelligence</small></div>
+      </div>
+      <div id="connection" class="connection" role="status" aria-live="polite" aria-label="Đang kết nối Kafka" title="Đang kết nối Kafka"><span></span> Đang kết nối Kafka</div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">APACHE FLINK · REAL-TIME</p>
+          <h1>Trung tâm phát hiện<br><em>gian lận tài chính</em></h1>
+          <p class="subtitle">Theo dõi dòng giao dịch, chấm điểm rủi ro và cảnh báo bất thường trong vài mili-giây.</p>
+        </div>
+        <div class="live-orbit"><span>LIVE</span><strong id="tpm">0</strong><small>giao dịch / phút</small></div>
+      </section>
+
+      <section class="stats-grid">
+        <article class="stat"><span>Tổng giao dịch</span><strong id="total-transactions">0</strong><small>đã đi qua Kafka</small></article>
+        <article class="stat alert-stat"><span>Cảnh báo rủi ro</span><strong id="total-alerts">0</strong><small>do Flink phát hiện</small></article>
+        <article class="stat"><span>Tỉ lệ cảnh báo</span><strong id="detection-rate">0%</strong><small>trên tổng giao dịch</small></article>
+        <article class="stat"><span>Dữ liệu thử nghiệm</span><strong id="injected">0</strong><small>giao dịch được cài kịch bản</small></article>
+      </section>
+
+      <section class="stream-semantics" aria-label="Cơ chế chịu lỗi và event time">
+        <div><span>Delivery</span><strong>Exactly-once</strong><small>Kafka transaction · read committed</small></div>
+        <div><span>Checkpoint</span><strong>10 giây</strong><small>Giữ lại khi hủy job</small></div>
+        <div><span>Watermark</span><strong>−5 giây</strong><small>Idle partition sau 15 giây</small></div>
+        <div class="late-semantics"><span>Dữ liệu quá hạn</span><strong id="late-transactions">0</strong><small id="latest-late-event">Chưa ghi nhận sự kiện muộn</small></div>
+      </section>
+
+      <section class="panel simulator-panel">
+        <div class="panel-title">
+          <div><p class="eyebrow">SIMULATION LAB</p><h2>Điều khiển luồng giao dịch</h2></div>
+          <span id="generator-health" class="generator-health"><i></i><b>Đang kết nối</b></span>
+        </div>
+        <div class="simulator-body">
+          <div class="simulator-state">
+            <span>Trạng thái generator</span>
+            <strong id="generator-state">Đang tải…</strong>
+            <small id="generator-meta">Chờ dữ liệu trạng thái từ Kafka</small>
+          </div>
+          <div class="rate-control">
+            <div><label for="tps-range">Tốc độ giao dịch</label><output id="tps-value" for="tps-range">4 TPS</output></div>
+            <input id="tps-range" type="range" min="0.2" max="20" step="0.2" value="4">
+            <div class="control-buttons">
+              <button id="apply-tps" class="button button-secondary" type="button">Áp dụng tốc độ</button>
+              <button id="toggle-generator" class="button button-primary" type="button">Tạm dừng</button>
+            </div>
+          </div>
+          <div class="scenario-control">
+            <span>Phát sinh gian lận ngay</span>
+            <div class="scenario-buttons">
+              <button class="scenario-button" type="button" data-scenario="HIGH_AMOUNT"><b>High amount</b><small>Giao dịch giá trị lớn</small></button>
+              <button class="scenario-button" type="button" data-scenario="RAPID_FIRE"><b>Rapid fire</b><small>6 giao dịch liên tiếp</small></button>
+              <button class="scenario-button" type="button" data-scenario="COUNTRY_HOP"><b>Country hop</b><small>Đổi quốc gia · mức High</small></button>
+              <button class="scenario-button" type="button" data-scenario="IMPOSSIBLE_TRAVEL"><b>Impossible travel</b><small>Chuyển tiền lớn xuyên quốc gia</small></button>
+              <button class="scenario-button" type="button" data-scenario="OUT_OF_ORDER"><b>Out of order</b><small>Event time chậm 30 giây</small></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="two-column">
+        <article class="panel alerts-panel">
+          <div class="panel-title"><div><p class="eyebrow">RISK QUEUE</p><h2>Cảnh báo mới nhất</h2></div><span class="pulse-label">Bấm để xem hồ sơ</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Mức độ</th><th>Tài khoản</th><th>Số tiền</th><th>Nguyên nhân</th><th>Thời gian</th><th>Thao tác</th></tr></thead>
+              <tbody id="alerts-body"><tr><td colspan="6" class="empty">Đang chờ cảnh báo đầu tiên…</td></tr></tbody>
+            </table>
+          </div>
+        </article>
+
+        <aside class="panel risk-panel">
+          <div class="panel-title risk-panel-title">
+            <div><p class="eyebrow">RISK PROFILE</p><h2>Phân bố mức độ</h2></div>
+            <label class="risk-window-control">Thời gian
+              <select id="risk-window" aria-label="Chọn mốc thời gian thống kê">
+                <option value="60">60 giây</option>
+                <option value="300">5 phút</option>
+                <option value="900">15 phút</option>
+                <option value="3600">1 giờ</option>
+                <option value="21600">6 giờ</option>
+                <option value="86400">24 giờ</option>
+                <option value="0">Toàn bộ</option>
+              </select>
+            </label>
+          </div>
+          <div class="risk-bars">
+            <div><label><span>Critical</span><b id="critical-count">0</b></label><i><span id="critical-bar"></span></i></div>
+            <div><label><span>High</span><b id="high-count">0</b></label><i><span id="high-bar"></span></i></div>
+            <div><label><span>Medium</span><b id="medium-count">0</b></label><i><span id="medium-bar"></span></i></div>
+          </div>
+          <h3>Tín hiệu thường gặp</h3>
+          <ol id="reasons"><li>Chưa có dữ liệu</li></ol>
+        </aside>
+      </section>
+
+      <section class="panel transactions-panel">
+        <div class="panel-title"><div><p class="eyebrow">EVENT EXPLORER</p><h2>Tra cứu giao dịch &amp; cảnh báo</h2></div><span class="kafka-route">Lịch sử từ Kafka</span></div>
+        <div class="explorer-tools">
+          <form id="event-filter-form" class="filter-grid">
+            <label class="filter-search">Mã giao dịch
+              <input id="event-query" name="q" maxlength="100" placeholder="Nhập toàn bộ hoặc một phần ID">
+            </label>
+            <label>Tài khoản
+              <input id="event-account" name="account" maxlength="80" placeholder="ACC-1001">
+            </label>
+            <label>Mức độ
+              <select id="event-severity" name="severity">
+                <option value="">Tất cả</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="NONE">Không cảnh báo</option>
+              </select>
+            </label>
+            <label>Quốc gia
+              <select id="event-country" name="country">
+                <option value="">Tất cả</option>
+                <option value="VN">Việt Nam</option><option value="SG">Singapore</option>
+                <option value="TH">Thái Lan</option><option value="JP">Nhật Bản</option><option value="US">Hoa Kỳ</option>
+              </select>
+            </label>
+            <label>Kịch bản
+              <select id="event-scenario" name="scenario">
+                <option value="">Tất cả</option><option value="NORMAL">Bình thường</option>
+                <option value="HIGH_AMOUNT">High amount</option><option value="RAPID_FIRE">Rapid fire</option>
+                <option value="COUNTRY_HOP">Country hop</option>
+                <option value="IMPOSSIBLE_TRAVEL">Impossible travel</option>
+                <option value="OUT_OF_ORDER">Out of order</option>
+              </select>
+            </label>
+            <label>Khoảng thời gian
+              <select id="event-minutes" name="minutes">
+                <option value="15">15 phút</option><option value="60">1 giờ</option>
+                <option value="360">6 giờ</option><option value="1440">24 giờ</option><option value="0" selected>Toàn bộ</option>
+              </select>
+            </label>
+            <label>Sắp xếp
+              <select id="event-sort" name="sortOrder">
+                <option value="time-desc">Mới nhất</option><option value="time-asc">Cũ nhất</option>
+                <option value="amount-desc">Số tiền giảm dần</option><option value="amount-asc">Số tiền tăng dần</option>
+                <option value="risk-desc">Rủi ro cao nhất</option><option value="risk-asc">Rủi ro thấp nhất</option>
+              </select>
+            </label>
+            <div class="filter-actions">
+              <button class="button button-primary" type="submit">Áp dụng</button>
+              <button id="critical-quick-filter" class="button button-alert" type="button">Critical · 15 phút</button>
+              <button id="reset-event-filters" class="button button-secondary" type="button">Đặt lại</button>
+            </div>
+          </form>
+          <div class="explorer-summary">
+            <span id="event-result-count">Đang tải dữ liệu…</span>
+            <div><button class="export-button" type="button" data-format="csv">Xuất CSV</button><button class="export-button" type="button" data-format="json">Xuất JSON</button></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mã giao dịch</th><th>Tài khoản</th><th>Danh mục</th><th>Quốc gia</th><th>Số tiền</th><th>Kịch bản</th><th>Mức độ</th><th>Điểm</th><th>Thời gian</th><th>Thao tác</th></tr></thead>
+            <tbody id="transactions-body"><tr><td colspan="10" class="empty">Đang tải lịch sử sự kiện…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <footer>FraudScope demo · Apache Kafka + Apache Flink + Docker</footer>
+  </div>
+
+  <div id="case-layer" class="case-layer" aria-hidden="true">
+    <button id="case-scrim" class="case-scrim" type="button" tabindex="-1" aria-label="Đóng hồ sơ cảnh báo"></button>
+    <aside id="case-drawer" class="case-drawer" role="dialog" aria-modal="true" aria-labelledby="case-title">
+      <div class="drawer-header">
+        <div><p class="eyebrow">ALERT INVESTIGATION</p><h2 id="case-title">Hồ sơ cảnh báo</h2></div>
+        <button id="close-case" class="icon-button" type="button" aria-label="Đóng hồ sơ">×</button>
+      </div>
+      <div id="case-loading" class="drawer-loading">Đang tải dữ liệu điều tra…</div>
+      <div id="case-content" class="drawer-content" hidden>
+        <section class="case-hero">
+          <div><span id="case-severity" class="badge">—</span><small id="case-alert-id">—</small></div>
+          <div class="score"><strong id="case-score">0</strong><span>điểm rủi ro</span></div>
+        </section>
+
+        <section class="case-section">
+          <h3>Thông tin giao dịch</h3>
+          <dl class="fact-grid">
+            <div><dt>Tài khoản</dt><dd id="case-account">—</dd></div>
+            <div><dt>Số tiền</dt><dd id="case-amount">—</dd></div>
+            <div><dt>Quốc gia</dt><dd id="case-country">—</dd></div>
+            <div><dt>Thiết bị</dt><dd id="case-device">—</dd></div>
+            <div><dt>Danh mục</dt><dd id="case-category">—</dd></div>
+            <div><dt>Thời gian</dt><dd id="case-time">—</dd></div>
+          </dl>
+        </section>
+
+        <section class="case-section">
+          <h3>Luật đã kích hoạt</h3>
+          <ul id="case-reasons" class="case-reasons"></ul>
+        </section>
+
+        <form id="case-form" class="case-section case-form">
+          <h3>Xử lý hồ sơ</h3>
+          <label>Trạng thái
+            <select id="case-status">
+              <option value="NEW">Mới</option>
+              <option value="INVESTIGATING">Đang điều tra</option>
+              <option value="CONFIRMED_FRAUD">Đã xác nhận gian lận</option>
+              <option value="FALSE_POSITIVE">Báo nhầm</option>
+            </select>
+          </label>
+          <label>Người xử lý<input id="case-assignee" maxlength="80" placeholder="Ví dụ: Nguyễn An"></label>
+          <label>Ghi chú<textarea id="case-notes" maxlength="2000" rows="4" placeholder="Ghi lại kết quả xác minh…"></textarea></label>
+          <button id="save-case" class="button button-primary" type="submit">Lưu hồ sơ</button>
+        </form>
+
+        <section class="case-section">
+          <h3>Dòng thời gian tài khoản</h3>
+          <ol id="case-timeline" class="case-timeline"></ol>
+        </section>
+      </div>
+    </aside>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='app.js', v='20260928-3') }}"></script>
+</body>
+</html>
